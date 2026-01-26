@@ -10,7 +10,7 @@ module.exports = {
     max_memory_restart: '500M',
     env: {
       NODE_ENV: 'production',
-      PORT: 3000
+      PORT: 3002
     },
     error_file: '/home/aqtboost/logs/err.log',
     out_file: '/home/aqtboost/logs/out.log',

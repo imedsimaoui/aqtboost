@@ -17,26 +17,36 @@ A modern, professional boosting platform for competitive games. Built with Next.
 - ✅ **Order Management System** - Full CRUD with SQLite/PostgreSQL
 - ✅ **6 Popular Games** - League of Legends, Valorant, CS2, Dota 2, OW2, Apex
 - ✅ **12+ Verified Testimonials** - Build trust with social proof (all languages)
+- ✅ **Authentication System** - NextAuth v5 with role-based access (Customer/Booster/Admin)
+- ✅ **Booster Application System** - Application form with admin review panel
+- ✅ **Admin Dashboard** - Manage users, orders, and booster applications
+- ✅ **Chat Support Widget** - Integrated customer support
 - ✅ **Responsive Design** - Perfect on mobile, tablet, and desktop
 - ✅ **SEO Optimized** - Meta tags, semantic HTML
-- ✅ **VPS Ready** - Complete deployment guide included
+- ✅ **VPS Ready** - Complete deployment guide for port 3002 included
 
 ### Technical Features
 - ✅ **TypeScript** - Type-safe codebase
 - ✅ **Server Components** - Optimized performance
 - ✅ **API Routes** - RESTful backend
 - ✅ **Database ORM** - Prisma with migrations
+- ✅ **Authentication** - NextAuth v5 with JWT sessions
+- ✅ **Password Hashing** - bcryptjs for secure passwords
+- ✅ **Role-Based Access Control** - Customer, Booster, Admin roles
 - ✅ **Form Validation** - Client & server-side
 - ✅ **Error Handling** - Comprehensive error management
 
 ## Tech Stack 🛠
 
 - **Framework:** Next.js 16 (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **Database:** Prisma (SQLite/PostgreSQL)
+- **Language:** TypeScript 5.9
+- **Styling:** Tailwind CSS 3.4
+- **Database:** Prisma ORM with SQLite (dev) / PostgreSQL (prod)
+- **Authentication:** NextAuth v5
 - **Payments:** Stripe (ready to integrate)
-- **Deployment:** Vercel-ready
+- **Process Manager:** PM2
+- **Reverse Proxy:** Nginx
+- **Deployment:** VPS-ready (Port 3002)
 
 ## Quick Start 🚀
 
@@ -110,6 +120,20 @@ Click the flag in the navbar to switch:
 
 ## Database Schema 💾
 
+### User Model
+```prisma
+model User {
+  id              String    @id @default(uuid())
+  name            String?
+  email           String    @unique
+  password        String
+  role            Role      @default(CUSTOMER)  // CUSTOMER, BOOSTER, ADMIN
+  discord         String?
+  orders          Order[]
+  boosterProfile  BoosterProfile?
+}
+```
+
 ### Order Model
 ```prisma
 model Order {
@@ -125,8 +149,31 @@ model Order {
   customerEmail   String
   paymentStatus   String   @default("pending")
   progress        Int      @default(0)
+  customerId      String?
+  boosterId       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+```
+
+### Booster Application Model
+```prisma
+model BoosterApplication {
+  id           String   @id @default(uuid())
+  name         String
+  email        String
+  discord      String
+  age          Int
+  games        Json
+  ranks        String
+  experience   String
+  availability String
+  why          String
+  status       String   @default("pending")  // pending, approved, rejected
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
 }
 ```
 
@@ -181,7 +228,16 @@ Create `.env` file:
 
 ```env
 # Database
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="file:./dev.db"  # For development
+# DATABASE_URL="postgresql://user:password@localhost:5432/aqtboost"  # For production
+
+# Authentication
+NEXTAUTH_SECRET="your-secret-key"  # Generate with: openssl rand -base64 32
+NEXTAUTH_URL="http://localhost:3000"
+
+# Production (VPS)
+# PORT=3002
+# NEXTAUTH_URL="http://51.75.251.155:3002"
 
 # Stripe (optional - for payments)
 STRIPE_SECRET_KEY=sk_test_...
@@ -190,6 +246,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+NODE_ENV="development"
 ```
 
 ## Commands 📝
@@ -211,50 +268,62 @@ git push                 # Auto-deploy with Vercel
 
 ## Deployment 🚀
 
-### Option 1: Vercel (Easiest)
+### Option 1: VPS Deployment (Port 3002) ⭐ RECOMMENDED
+
+**For VPS with multiple sites already running.**
+
+**Quick Start Guide:** See **[QUICK-START-VPS.md](./QUICK-START-VPS.md)**
+
+**One-command setup:**
+```bash
+# On VPS (after uploading code)
+cd ~/aqtboost
+./setup-port-3002.sh
+```
+
+This automated script will:
+- ✅ Configure port 3002
+- ✅ Open firewall
+- ✅ Install dependencies
+- ✅ Setup database
+- ✅ Build application
+- ✅ Start with PM2
+
+**Access your site:** http://51.75.251.155:3002
+
+**Complete Guides:**
+- **[DEPLOY-OVH.md](./DEPLOY-OVH.md)** - Full VPS deployment guide
+- **[MULTI-SITE-NGINX.md](./MULTI-SITE-NGINX.md)** - Multi-site configuration
+- **[check-vps.sh](./check-vps.sh)** - VPS diagnostic script
+
+### Option 2: Vercel (Quick Testing)
 
 1. Push to GitHub
 2. Import to Vercel
 3. Add environment variables
 4. Deploy ✅
 
-### Option 2: VPS (Full Control) ⭐ RECOMMENDED
+**Note:** For production with authentication and database, VPS is recommended.
 
-**Complete VPS deployment guide:** See **[VPS-DEPLOY.md](./VPS-DEPLOY.md)**
-
-Quick steps:
-```bash
-# 1. Upload files to VPS
-scp -r * user@YOUR_IP:/home/user/aqtboost/
-
-# 2. On VPS - Install dependencies
-npm install && npm run build
-
-# 3. Setup PostgreSQL database
-# 4. Configure Nginx + SSL
-# 5. Start with PM2
-pm2 start ecosystem.config.js
-
-# 6. Or use deploy script
-./deploy.sh
+### Production Environment Variables (VPS)
+```env
+DATABASE_URL="postgresql://aqtboost_user:PASSWORD@localhost:5432/aqtboost"
+NEXTAUTH_SECRET="generate-with-openssl"
+NEXTAUTH_URL="http://51.75.251.155:3002"
+NODE_ENV="production"
+PORT=3002
 ```
 
-Full guide includes:
-- Node.js installation
-- PostgreSQL setup
-- Nginx configuration
-- SSL with Let's Encrypt
-- PM2 process management
-- Auto-deploy script
-- Troubleshooting
+## Current Features ✅
 
-### Environment Variables
-- `DATABASE_URL` - PostgreSQL connection string
-- `STRIPE_SECRET_KEY` - Stripe secret key
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Stripe public key
-- `STRIPE_WEBHOOK_SECRET` - Webhook secret
+### Authentication & Authorization
+- ✅ User registration (Customers only)
+- ✅ Booster application system with review
+- ✅ Role-based access (CUSTOMER, BOOSTER, ADMIN)
+- ✅ NextAuth v5 with JWT sessions
+- ✅ Admin dashboard for user/order management
 
-## Features to Add 🎯
+### Features to Add 🎯
 
 ### Payment Integration
 - [ ] Stripe checkout flow
@@ -262,14 +331,13 @@ Full guide includes:
 - [ ] Order confirmation emails
 
 ### Enhanced Features
-- [ ] User authentication (NextAuth.js)
-- [ ] Admin dashboard
-- [ ] Booster assignment system
-- [ ] Live chat support
-- [ ] Order tracking in real-time
+- [ ] Booster assignment automation
+- [ ] Real-time order tracking
+- [ ] Email notifications (Resend)
+- [ ] Advanced analytics dashboard
 
 ### Marketing
-- [ ] SEO optimization
+- [ ] SEO optimization enhancements
 - [ ] Blog/Resources section
 - [ ] Affiliate program
 - [ ] Referral system
