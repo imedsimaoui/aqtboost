@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     if (!session?.user || session.user.role !== 'BOOSTER') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,7 +23,7 @@ export async function POST(
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!order) {
@@ -33,16 +34,14 @@ export async function POST(
       return NextResponse.json({ error: 'Order already claimed' }, { status: 400 });
     }
 
-    // Update order with booster
     const updatedOrder = await prisma.order.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         boosterId: user.boosterProfile.id,
         status: 'in-progress',
       },
     });
 
-    // Update booster stats
     await prisma.boosterProfile.update({
       where: { id: user.boosterProfile.id },
       data: {

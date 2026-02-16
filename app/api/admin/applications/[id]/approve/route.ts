@@ -5,16 +5,17 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     if (!session?.user || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const application = await prisma.boosterApplication.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!application) {
@@ -25,23 +26,17 @@ export async function POST(
       return NextResponse.json({ error: 'Application already processed' }, { status: 400 });
     }
 
-    // Check if email already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: application.email },
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
     }
 
-    // Generate temporary password
     const tempPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-    // Create user and booster profile
     const user = await prisma.user.create({
       data: {
         name: application.name,
@@ -52,7 +47,7 @@ export async function POST(
         boosterProfile: {
           create: {
             games: application.games,
-            rank: application.ranks.split(',')[0].trim(), // Take first rank
+            rank: application.ranks.split(',')[0].trim(),
             rating: 5.0,
             totalOrders: 0,
             isActive: true,
@@ -61,9 +56,8 @@ export async function POST(
       },
     });
 
-    // Update application status
     await prisma.boosterApplication.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: 'approved',
         reviewedBy: session.user.id,
@@ -72,19 +66,10 @@ export async function POST(
       },
     });
 
-    // TODO: Send email to booster with credentials
-
-    return NextResponse.json(
-      {
-        message: 'Application approved',
-        user: {
-          id: user.id,
-          email: user.email,
-          tempPassword,
-        },
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      message: 'Application approved',
+      user: { id: user.id, email: user.email, tempPassword },
+    }, { status: 200 });
   } catch (error) {
     console.error('Failed to approve application:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

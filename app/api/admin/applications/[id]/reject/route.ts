@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
     if (!session?.user || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -15,7 +16,7 @@ export async function POST(
     const { notes } = await request.json();
 
     const application = await prisma.boosterApplication.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!application) {
@@ -27,7 +28,7 @@ export async function POST(
     }
 
     await prisma.boosterApplication.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: 'rejected',
         reviewedBy: session.user.id,
@@ -36,12 +37,7 @@ export async function POST(
       },
     });
 
-    // TODO: Send email to applicant
-
-    return NextResponse.json(
-      { message: 'Application rejected' },
-      { status: 200 }
-    );
+    return NextResponse.json({ message: 'Application rejected' }, { status: 200 });
   } catch (error) {
     console.error('Failed to reject application:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
